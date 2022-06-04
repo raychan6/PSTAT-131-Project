@@ -1,0 +1,353 @@
+---
+title: 'PSTAT 131 Project'
+author: "Raymond Lee"
+date: '2022-05-19'
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_collapsed: true
+    code_folding: hide
+---
+  
+  ```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+![](jokic.jpg)
+This project attempts to create a model that will predict whether the Denver Nuggets will win or lose a game based on Nikola Jokic's performance.
+
+## Background and Research Questions
+As of writing this report, Jokic is the reigning back-to-back MVP in the NBA and has produced historic stats and numbers in the process. He is arguably the best player in the league and undeniably the best player on his team. Therefore, I was interested in learning about how great and valuable Jokic is. That is, does his performance truly lead to his team winning or losing? Does he indeed "carry" his team? These are some of the questions that I sought to answer. 
+
+## The Data
+The data were obtained from https://www.basketball-reference.com/. The website records basic and advanced stats for basketball players and teams. The data set is quite extensive, so it may be helpful to consult the codebook. 
+
+
+# Data Cleaning
+Stats for each regular season were in separate data sets. Basic and advanced stats for each season were also in separate datasets. The data was cleaned before performing the initial split:
+
+```{r, results='hide', message=FALSE, warning=FALSE}
+library(dplyr)
+library(tidyr)
+library(stringr)
+
+set.seed(1114)
+```
+
+* For each season's data sets, unnecessary or repetitive columns were removed. Column names were also modified into more legible ones. The values for the column that indicated the game's location were also changed to "Home" and "Away." The basic and advanced data sets for each season were then merged to have complete stats for each season. 
+
+```{r}
+reg1516 = read.csv("15-16.txt")
+reg1516 = reg1516[-5]
+reg1516[5][reg1516[5] == "@"] = "Away"
+reg1516[5][reg1516[5] == ""] = "Home"
+new_colnames1 = list("Location", "Result", "FG%", "3P", "3PA", "3P%", "FT%", "PM")
+colnames(reg1516)[c(5, 7, 12:15, 18, 29)] = new_colnames1
+
+adv1516 = read.csv("adv15-16.txt")
+adv1516 = adv1516[-c(2:10, 23)]
+new_colnames2 = list("TS%", "eFG%", "ORB%", "DRB%", "TRB%", "AST%", "STL%", "BLK%", 
+                     "TOV%", "USG%")
+colnames(adv1516)[c(2:11)] = new_colnames2
+
+stats1516 = merge(reg1516, adv1516)
+
+reg1617 = read.csv("16-17.txt")
+reg1617 = reg1617[-5]
+reg1617[5][reg1617[5] == "@"] = "Away"
+reg1617[5][reg1617[5] == ""] = "Home"
+colnames(reg1617)[c(5, 7, 12:15, 18, 29)] = new_colnames1
+
+adv1617 = read.csv("adv16-17.txt")
+adv1617 = adv1617[-c(2:10, 23)]
+colnames(adv1617)[c(2:11)] = new_colnames2
+
+stats1617 = merge(reg1617, adv1617)
+
+reg1718 = read.csv("17-18.txt")
+reg1718 = reg1718[-5]
+reg1718[5][reg1718[5] == "@"] = "Away"
+reg1718[5][reg1718[5] == ""] = "Home"
+colnames(reg1718)[c(5, 7, 12:15, 18, 29)] = new_colnames1
+
+adv1718 = read.csv("adv17-18.txt")
+adv1718 = adv1718[-c(2:10, 23)]
+colnames(adv1718)[c(2:11)] = new_colnames2
+
+stats1718 = merge(reg1718, adv1718)
+
+reg1819 = read.csv("18-19.txt")
+reg1819 = reg1819[-5]
+reg1819[5][reg1819[5] == "@"] = "Away"
+reg1819[5][reg1819[5] == ""] = "Home"
+colnames(reg1819)[c(5, 7, 12:15, 18, 29)] = new_colnames1
+
+adv1819 = read.csv("adv18-19.txt")
+adv1819 = adv1819[-c(2:10, 23)]
+colnames(adv1819)[c(2:11)] = new_colnames2
+
+stats1819 = merge(reg1819, adv1819)
+
+reg1920 = read.csv("19-20.txt")
+reg1920 = reg1920[-5]
+reg1920[5][reg1920[5] == "@"] = "Away"
+reg1920[5][reg1920[5] == ""] = "Home"
+colnames(reg1920)[c(5, 7, 12:15, 18, 29)] = new_colnames1
+
+adv1920 = read.csv("adv19-20.txt")
+adv1920 = adv1920[-c(2:10, 23)]
+colnames(adv1920)[c(2:11)] = new_colnames2
+
+stats1920 = merge(reg1920, adv1920)
+
+reg2021 = read.csv("20-21.txt")
+reg2021 = reg2021[-5]
+reg2021[5][reg2021[5] == "@"] = "Away"
+reg2021[5][reg2021[5] == ""] = "Home"
+colnames(reg2021)[c(5, 7, 12:15, 18, 29)] = new_colnames1
+
+adv2021 = read.csv("adv20-21.txt")
+adv2021 = adv2021[-c(2:10, 23)]
+colnames(adv2021)[c(2:11)] = new_colnames2
+
+stats2021 = merge(reg2021, adv2021)
+
+reg2122 = read.csv("21-22.txt")
+reg2122 = reg2122[-5]
+reg2122[5][reg2122[5] == "@"] = "Away"
+reg2122[5][reg2122[5] == ""] = "Home"
+colnames(reg2122)[c(5, 7, 12:15, 18, 29)] = new_colnames1
+
+adv2122 = read.csv("adv21-22.txt")
+adv2122 = adv2122[-c(2:10, 23)]
+colnames(adv2122)[c(2:11)] = new_colnames2
+
+stats2122 = merge(reg2122, adv2122)
+
+stats1516 = stats1516[-1]
+stats1617 = stats1617[-1]
+stats1718 = stats1718[-1]
+stats1819 = stats1819[-1]
+stats1920 = stats1920[-1]
+stats2021 = stats2021[-1]
+stats2122 = stats2122[-1]
+```
+
+* The datasets for each season were then merged into one dataset.
+
+```{r}
+stats = rbind(stats1516, stats1617, stats1718, stats1819, stats1920, 
+              stats2021, stats2122)
+```
+
+* The game's result and point differential were in the same column, so the two were separated. Plus signs were also removed from column values that utilized them to make the data easier to read. 
+
+```{r}
+stats = separate(stats, Result, c("Result", "Differential"), sep = " ")
+stats$Differential = gsub("[()]", "", stats$Differential)
+stats$Differential = gsub("\\+", "", stats$Differential)
+stats$PM = gsub("\\+", "", stats$PM)
+```
+
+* The column that indicated whether Jokic started the game was removed. Columns that should be numeric were also coded as numeric.
+
+```{r, warning=FALSE}
+stats = stats[-8]
+stats[c(1, 7, 9:41)] = lapply(stats[c(1, 7, 9:41)], as.numeric)
+```
+
+* The Date column was coded as and separated into Year, Month, Day. The days in Age were also dropped. 
+
+```{r, message=FALSE}
+library(lubridate)
+
+stats$Date = ymd(stats$Date)
+stats$Age = gsub("-.*", "", stats$Age)
+stats[3] = lapply(stats[3], as.numeric)
+stats = stats %>% 
+  mutate(year=year(Date), month=month(Date), day=mday(Date))
+```
+
+* Games in which Jokic did not play were removed. The minutes played column was also coded as and separated into Minutes and Seconds.
+
+```{r}
+stats = stats %>% 
+  filter(str_detect(MP, ":")) %>% 
+  mutate(Time=parse_date_time(MP, "M:S"), Minutes=minute(Time), Seconds=second(Time))
+```
+
+* Then, unnecessary columns were removed once more, and the columns were reordered. Character columns were also coded as factors.
+
+```{r}
+stats = stats[-c(2, 8, 44, 45)]
+stats = stats[,c(1, 40:41, 2:4, 42:43, 5:39)]
+
+stats$Location = as.factor(stats$Location)
+stats$Opp = as.factor(stats$Opp)
+stats$Result = as.factor(stats$Result)
+```
+
+* The column names were then cleaned, and the differential column was dropped.
+
+```{r, message=FALSE}
+library(janitor)
+stats = stats %>% 
+  clean_names()
+
+names(stats)[14] = 'three_pts'
+names(stats)[15] = 'three_pa'
+names(stats)[16] = 'three_pts_percent'
+names(stats)[32] = 'efg_percent'
+names(stats)[41] = 'ortg'
+names(stats)[42] = 'drtg'
+
+stats_with_diff = stats
+stats = stats[-10]
+```
+
+
+# Exploratory Data Analysis
+A separate dataset that preserves the Differential variable and contains no missing values was created to aid with EDA. 128 observations were omitted through this process, so this may have a negative impact on the accuracy of the EDA.
+
+```{r}
+eda_stats = na.omit(stats_with_diff)
+```
+
+## Win/Loss Distribution
+```{r, message=FALSE}
+library(tidymodels)
+ggplot(eda_stats, aes(result)) + geom_bar() + ggtitle('Win/Loss Distribution') + xlab('Result') + ylab('Count')
+```
+
+As we can see, the Jokic and the Nuggets have more wins than losses for games that Jokic has played in. This suggests that Jokic is a winning player, which is expected of an MVP. 
+
+## Win/Loss Grouped by Location
+```{r}
+ggplot(eda_stats, aes(result, fill=location)) + geom_bar(position='dodge') + ggtitle('Win/Loss by Location') + 
+  xlab('Result') + ylab('Count') + guides(fill=guide_legend(title='Location'))
+```
+
+Jokic and the Nuggets have won more games at home, but they have lost more games at away. This may be a sign of the existence of home court advantage.
+
+## Correlation Between Stats
+A correlation matrix was created for the numeric variables. 
+
+```{r, message=FALSE}
+library(corrplot)
+eda_stats %>% select(where(is.numeric)) %>% 
+  cor() %>% 
+  corrplot(type = 'lower', diag = FALSE, method = 'color')
+```
+
+Minutes are strongly positively correlated with field goals, field goal attempts, and points. This is intuitive because more time on the court would allow for more shots taken and points scored. Minutes are also strongly positively correlated with Game Score, suggesting that the more that Jokic plays, the more productive he ends up being.
+
+Year is strongly positively correlated with field goals, field goal attempts, total rebounds, assists, points, Game Score, assist percentage, and usage percentage. This suggests that Jokic improves offensively as time goes on. He is also more involved in team plays and provides more assists as time goes on. 
+
+Usage percentage is also strongly positively correlated with field goals, field goal attempts, and points. As he becomes more involved in the team's plays, he attempts and makes more shots. However, usage percentage is also moderately correlated with turnovers. 
+
+Offensive rating is moderately negatively correlated with turnovers and turnover percentage. Defensive rating is strongly negatively correlated with differential and moderately negatively correlated with defensive rebounds, total rebounds, steals, and their respective percentages. These make sense because more turnovers would lead to less points produced, and more rebounds and steals would lead to less points allowed.
+
+Finally, differential is slightly positively correlated with assists, true shooting percentage, effective field goal percentage, and total rebound percentage. Therefore, it may be possible that when Jokic has more assists, has better overall shooting numbers, and grabs more defensive rebounds that are available, it may lead to a win. What is interesting is that despite Jokic being praised as one of the passers in the NBA today (and most likely in NBA history by the time he retires), assists and assist percentage are not strongly positively correlated with differential. 
+
+## Distribution of Plus/Minus Grouped by Opponent 
+```{r}
+stats %>% 
+  ggplot(aes(x=pm, y=opp)) + geom_boxplot() + 
+  ggtitle('Distribution of Plus/Minus by Opponent') + xlab('Plus/Minus') + ylab('Opponent')
+```
+
+At a glance, this graphic shows that the spread for the distribution of Jokic's plus/minus is greatest when he plays against the Atlanta Hawks, the Cleveland Cavaliers, and Golden State Warriors. In other words, he plays the most inconsistently against these teams compared to other teams. Jokic has his highest median plus/minus when he plays against the Orlando Magic and has his lowest median plus/minus when he plays against the Golden State Warriors. His team's typical lead when he is playing is greatest against the Orlando Magic but lowest against the Golden State Warriors. 
+
+## Median Differential Grouped by Opponent
+```{r}
+eda_stats %>% 
+  group_by(opp) %>% 
+  mutate(median_diff=median(differential)) %>% 
+  ungroup() %>% 
+  ggplot(aes(x=opp, y=median_diff)) + geom_bar(stat='identity') + 
+  ggtitle('Median Differential Against Each Opponent') + xlab('Opponent') + ylab('Median Differential')
+```
+
+This graphic shows that Jokic and the Nuggets win with the greatest point disparity against the Los Angeles Lakers and the New York Knicks. However, they lose with the greatest point disparity against the Golden State Warriors. 
+
+## Average True Shooting Percentage Over Time
+```{r}
+eda_stats %>% 
+  group_by(year) %>% 
+  mutate(avg_ts_percent=mean(ts_percent)) %>% 
+  ungroup() %>% 
+  ggplot(aes(x=year, y=avg_ts_percent)) + geom_point(stat='identity') + geom_line() + 
+  ggtitle('Average True Shooting Percentage Over Time') + xlab('Year') + ylab('Average True Shooting Percentage')
+```
+
+This graphic shows that Jokic's average scoring efficiency improved until 2018, after which his efficiency has fluctuated. In particular, Jokic's average true shooting percentage was over 50% in 2021, which is when he won his first MVP award. 
+
+## Scatterplot of Plus/Minus vs. Usage Percentage
+```{r, message=FALSE}
+stats %>% 
+  ggplot(aes(x=usg_percent, y=pm, color=result)) + geom_point() + geom_smooth(method='lm') + 
+  ggtitle('Plus/Minus vs. Usage Percentage') + xlab('Usage Percentage') + ylab('Plus/Minus') + 
+  guides(color=guide_legend(title='Result'))
+```
+
+This graphic reveals that as Jokic's usage percentage increases, his plus/minus tends to drop slightly. That is, as Jokic becomes more involved his team's plays, the lead that his team has while he is in the game slightly decreases. Therefore, there seems to be a point of diminishing returns on scoring as his team relies on him more. 
+
+
+# Data Splitting and Cross Validation
+The data were split into a 70% training and 30% test split. Stratified sampling was performed due to the win/loss (result) distribution being skewed. The training set consists of 368 observations whereas the testing set consists of 159 observations.
+
+```{r}
+stats_split = stats %>% 
+  initial_split(prop=.7, strata='result')
+
+stats_train = training(stats_split)
+stats_test = testing(stats_split)
+```
+
+The training set was then folded into 10 folds.
+
+```{r}
+stats_folds = vfold_cv(stats_train, v=10)
+```
+
+
+# Model Fitting
+
+## Creating the Recipe
+Before fitting models, a problem with the data had to be addressed: missing values. Certain predictor values may be missing based on how Jokic plays in a game. For example, if he does not shoot a free throw at all, the value for free throw percentage would be missing. Unfortunately, removing all observations with missing values would result in the exclusion of a significant portion of the data. We would also lose all other information besides the missing values, if any, in each observation.
+
+I decided to impute missing values using the medians of the respective predictors. Therefore, readers should understand that any conclusions made in this project involve the following caveat: missing values for any predictor were replaced with the median for that particular predictor. This may either inflate or deflate Jokic's overall performance in each game with missing values.
+
+The recipe used to fit the models was created with the following code after identifying which predictors had missing values.
+
+```{r}
+# Predictors with missing values
+colnames(stats)[colSums(is.na(stats)) > 0]
+```
+
+```{r}
+recipe = recipe(result ~., data = stats_train) %>% 
+  step_impute_median(fg_percent, three_pts_percent, ft_percent, ts_percent, efg_percent, tov_percent) %>% 
+  step_dummy(all_nominal_predictors()) %>% 
+  step_normalize(all_predictors())
+```
+
+## Logistic Regression
+I first fit a logistic regression model with the following code.
+
+```{r, warning=FALSE}
+log_reg = logistic_reg() %>% 
+  set_engine('glm') %>% 
+  set_mode('classification')
+
+log_workflow = workflow() %>% 
+  add_model(log_reg) %>% 
+  add_recipe(recipe)
+
+log_fit = fit(log_workflow, stats_train)
+```
+
+# 
+
