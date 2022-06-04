@@ -282,7 +282,7 @@ eda_stats %>%
   ggtitle('Average True Shooting Percentage Over Time') + xlab('Year') + ylab('Average True Shooting Percentage')
 ```
 
-This graphic shows that Jokic's average scoring efficiency improved until 2018, after which his efficiency has fluctuated. In particular, Jokic's average true shooting percentage was over 50% in 2021, which is when he won his first MVP award. 
+This graphic shows that Jokic's average scoring efficiency (considering 2-pointers, 3-pointers, and free throws) improved until 2018, after which his efficiency has fluctuated. In particular, we can see that Jokic's average true shooting percentage was around a ridiculously elite percentage of 65% in 2021, which is when he won his first MVP award. 
 
 ## Scatterplot of Plus/Minus vs. Usage Percentage
 ```{r, message=FALSE}
@@ -322,22 +322,22 @@ I decided to impute missing values using the medians of the respective predictor
 
 The recipe used to fit the models was created with the following code after identifying which predictors had missing values.
 
-```{r}
+```{r class.source = 'fold-show'}
 # Predictors with missing values
 colnames(stats)[colSums(is.na(stats)) > 0]
 ```
 
-```{r}
+```{r class.source = 'fold-show'}
 recipe = recipe(result ~., data = stats_train) %>% 
   step_impute_median(fg_percent, three_pts_percent, ft_percent, ts_percent, efg_percent, tov_percent) %>% 
   step_dummy(all_nominal_predictors()) %>% 
   step_normalize(all_predictors())
 ```
 
-## Logistic Regression
+## Logistic Regression Model
 I first fit a logistic regression model with the following code.
 
-```{r, warning=FALSE}
+```{r class.source = 'fold-show', warning=FALSE}
 log_reg = logistic_reg() %>% 
   set_engine('glm') %>% 
   set_mode('classification')
@@ -349,5 +349,39 @@ log_workflow = workflow() %>%
 log_fit = fit(log_workflow, stats_train)
 ```
 
-# 
+## Random Forest Model 
+```{r class.source = 'fold-show'}
+rf_spec = rand_forest(mtry=tune(), trees=tune(), min_n=tune()) %>% 
+  set_engine('ranger', importance='impurity') %>% 
+  set_mode('classification')
+```
+
+```{r class.source = 'fold-show'}
+rf_grid = grid_regular(mtry(range=c(1, 6)), trees(range=c(1, 4)), min_n(range=c(1, 10)), levels=41)
+```
+
+```{r}
+rf_wf = workflow() %>% 
+  add_model(rf_spec) %>% 
+  add_recipe(recipe)
+
+# rf_tune_res = tune_grid(rf_wf, resamples=stats_folds, grid=rf_grid, metrics=metric_set(roc_auc))
+load('rf.rda')
+```
+
+```{r}
+autoplot(rf_tune_res)
+```
+
+```{r}
+best_rf = select_best(rf_tune_res)
+
+rf_final = finalize_workflow(rf_wf, best_rf)
+
+rf_final_fit = fit(rf_final, data = stats_train)
+```
+
+```{r}
+vip(rf_final_fit)
+```
 
