@@ -385,4 +385,3 @@ rf_final_fit = fit(rf_final, data = stats_train)
 vip(rf_final_fit)
 ```
 
-asdf
