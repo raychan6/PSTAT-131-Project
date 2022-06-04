@@ -360,7 +360,7 @@ rf_spec = rand_forest(mtry=tune(), trees=tune(), min_n=tune()) %>%
 rf_grid = grid_regular(mtry(range=c(1, 6)), trees(range=c(1, 4)), min_n(range=c(1, 10)), levels=41)
 ```
 
-```{r}
+```{r class.source = 'fold-show'}
 rf_wf = workflow() %>% 
   add_model(rf_spec) %>% 
   add_recipe(recipe)
@@ -373,7 +373,7 @@ load('rf.rda')
 autoplot(rf_tune_res)
 ```
 
-```{r}
+```{r class.source = 'fold-show'}
 best_rf = select_best(rf_tune_res)
 
 rf_final = finalize_workflow(rf_wf, best_rf)
@@ -382,6 +382,6 @@ rf_final_fit = fit(rf_final, data = stats_train)
 ```
 
 ```{r}
-vip(rf_final_fit)
+
 ```
 
