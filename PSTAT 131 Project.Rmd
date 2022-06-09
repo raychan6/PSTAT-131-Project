@@ -1,7 +1,6 @@
 ---
 title: 'PSTAT 131 Project'
 author: "Raymond Lee"
-date: '2022-05-19'
 output:
   html_document:
     toc: true
@@ -158,7 +157,7 @@ stats = stats[-8]
 stats[c(1, 7, 9:41)] = lapply(stats[c(1, 7, 9:41)], as.numeric)
 ```
 
-* The Date column was coded as and separated into Year, Month, Day. The days in Age were also dropped. 
+* The `Date` column was coded as and separated into `Year`, `Month`, `Day`. The days in `Age` were also dropped. 
 
 ```{r, message=FALSE}
 library(lubridate)
@@ -189,7 +188,7 @@ stats$Opp = as.factor(stats$Opp)
 stats$Result = as.factor(stats$Result)
 ```
 
-* The column names were then cleaned, and the differential column was dropped.
+* The column names were then cleaned. A separate data set that preserves the `Differential` variable was created to aid with EDA. Then, it was dropped from the original data set.
 
 ```{r, message=FALSE}
 library(janitor)
@@ -209,70 +208,76 @@ stats = stats[-10]
 
 
 # Exploratory Data Analysis
-A separate dataset that preserves the Differential variable and contains no missing values was created to aid with EDA. 128 observations were omitted through this process, so this may have a negative impact on the accuracy of the EDA.
-
-```{r}
-eda_stats = na.omit(stats_with_diff)
-```
 
 ## Win/Loss Distribution
 ```{r, message=FALSE}
 library(tidymodels)
-ggplot(eda_stats, aes(result)) + geom_bar() + ggtitle('Win/Loss Distribution') + xlab('Result') + ylab('Count')
+library(tidyverse)
+tidymodels_prefer()
+
+ggplot(stats_with_diff, aes(result, fill=result)) + geom_bar() + ggtitle('Win/Loss Distribution') + xlab('Result') + ylab('Count') + 
+  theme(legend.position='none')
 ```
 
 As we can see, the Jokic and the Nuggets have more wins than losses for games that Jokic has played in. This suggests that Jokic is a winning player, which is expected of an MVP. 
 
 ## Win/Loss Grouped by Location
 ```{r}
-ggplot(eda_stats, aes(result, fill=location)) + geom_bar(position='dodge') + ggtitle('Win/Loss by Location') + 
+ggplot(stats_with_diff, aes(result, fill=location)) + geom_bar(position='dodge') + ggtitle('Win/Loss by Location') + 
   xlab('Result') + ylab('Count') + guides(fill=guide_legend(title='Location'))
 ```
 
-Jokic and the Nuggets have won more games at home, but they have lost more games at away. This may be a sign of the existence of home court advantage.
+We can see that Jokic and the Nuggets have won more games at home but have lost more games at away. This may be a sign of the existence of home court advantage.
+
+## Median Differential Grouped by Opponent
+```{r}
+stats_with_diff %>% 
+  group_by(opp) %>% 
+  mutate(median_diff=median(differential)) %>% 
+  ungroup() %>% 
+  ggplot(aes(x=opp, y=median_diff, fill=opp)) + geom_bar(stat='identity') + 
+  ggtitle('Median Differential Against Each Opponent') + xlab('Opponent') + ylab('Median Differential') + 
+  theme(legend.position='none')
+```
+
+This graphic shows that Jokic and the Nuggets win with the greatest point disparity against the New York Knicks. However, they lose with the greatest point disparity against the Golden State Warriors. 
 
 ## Correlation Between Stats
-A correlation matrix was created for the numeric variables. 
+A correlation matrix was created for the numeric variables. A separate data set with no missing values was created for this section. 128 observations were omitted through this process, so this may have a slight negative impact on the accuracy of this analysis.
 
 ```{r, message=FALSE}
 library(corrplot)
+
+eda_stats = na.omit(stats_with_diff)
+
 eda_stats %>% select(where(is.numeric)) %>% 
   cor() %>% 
   corrplot(type = 'lower', diag = FALSE, method = 'color')
 ```
 
-Minutes are strongly positively correlated with field goals, field goal attempts, and points. This is intuitive because more time on the court would allow for more shots taken and points scored. Minutes are also strongly positively correlated with Game Score, suggesting that the more that Jokic plays, the more productive he ends up being.
+`minutes` are strongly positively correlated with `fg` (field goals), `fga` (field goal attempts), and `pts` (points). This is intuitive because more time on the court would allow for more shots taken and points scored. `Minutes` are also strongly positively correlated with `gm_sc` (Game Score), suggesting that the more that Jokic plays, the more productive he ends up being.
 
-Year is strongly positively correlated with field goals, field goal attempts, total rebounds, assists, points, Game Score, assist percentage, and usage percentage. This suggests that Jokic improves offensively as time goes on. He is also more involved in team plays and provides more assists as time goes on. 
+`year` is strongly positively correlated with `fg`, `fga`, `tfb` (total rebounds), `ast` (assists), `pts`, `gm_sc`, `ast_percent` (assist percentage), and `usg_percent` (usage percentage). This suggests that Jokic improves offensively as time goes on. He is also more involved in team plays and provides more assists as time goes on. 
 
-Usage percentage is also strongly positively correlated with field goals, field goal attempts, and points. As he becomes more involved in the team's plays, he attempts and makes more shots. However, usage percentage is also moderately correlated with turnovers. 
+`usg_percent` is also strongly positively correlated with `fg`, `fga`, and `pts`. As he becomes more involved in the team's plays, he attempts and makes more shots. However, `usg_percent` is also moderately correlated with `tov` (turnovers). 
 
-Offensive rating is moderately negatively correlated with turnovers and turnover percentage. Defensive rating is strongly negatively correlated with differential and moderately negatively correlated with defensive rebounds, total rebounds, steals, and their respective percentages. These make sense because more turnovers would lead to less points produced, and more rebounds and steals would lead to less points allowed.
+`ortg` (offensive rating) is moderately negatively correlated with `tov` and `tov_percent` (turnover percentage). `drtg` (defensive rating) is strongly negatively correlated with `differential` and moderately negatively correlated with `drb` (defensive rebounds), `trb`, `stl` (steals), and their respective percentages. These make sense because more turnovers would lead to less points produced, and more rebounds and steals would lead to less points allowed.
 
-Finally, differential is slightly positively correlated with assists, true shooting percentage, effective field goal percentage, and total rebound percentage. Therefore, it may be possible that when Jokic has more assists, has better overall shooting numbers, and grabs more defensive rebounds that are available, it may lead to a win. What is interesting is that despite Jokic being praised as one of the passers in the NBA today (and most likely in NBA history by the time he retires), assists and assist percentage are not strongly positively correlated with differential. 
+Finally, `differential` is slightly positively correlated with `ast`, `ts_percent` (true shooting percentage), `efg_percent` (effective field goal percentage), and `trb_percent` (total rebound percentage). Therefore, it may be possible that when Jokic has more assists, has better overall shooting numbers, and grabs more rebounds that are available, it may lead to a win. What is interesting is that despite Jokic being praised as one of the passers in the NBA today (and most likely in NBA history by the time he retires), assists and assist percentage are not strongly positively correlated with differential. 
 
 ## Distribution of Plus/Minus Grouped by Opponent 
 ```{r}
-stats %>% 
-  ggplot(aes(x=pm, y=opp)) + geom_boxplot() + 
-  ggtitle('Distribution of Plus/Minus by Opponent') + xlab('Plus/Minus') + ylab('Opponent')
+stats_with_diff %>% 
+  ggplot(aes(x=pm, y=opp, fill=opp)) + geom_boxplot() + 
+  ggtitle('Distribution of Plus/Minus by Opponent') + xlab('Plus/Minus') + ylab('Opponent') + 
+  theme(legend.position='none')
 ```
 
-At a glance, this graphic shows that the spread for the distribution of Jokic's plus/minus is greatest when he plays against the Atlanta Hawks, the Cleveland Cavaliers, and Golden State Warriors. In other words, he plays the most inconsistently against these teams compared to other teams. Jokic has his highest median plus/minus when he plays against the Orlando Magic and has his lowest median plus/minus when he plays against the Golden State Warriors. His team's typical lead when he is playing is greatest against the Orlando Magic but lowest against the Golden State Warriors. 
-
-## Median Differential Grouped by Opponent
-```{r}
-eda_stats %>% 
-  group_by(opp) %>% 
-  mutate(median_diff=median(differential)) %>% 
-  ungroup() %>% 
-  ggplot(aes(x=opp, y=median_diff)) + geom_bar(stat='identity') + 
-  ggtitle('Median Differential Against Each Opponent') + xlab('Opponent') + ylab('Median Differential')
-```
-
-This graphic shows that Jokic and the Nuggets win with the greatest point disparity against the Los Angeles Lakers and the New York Knicks. However, they lose with the greatest point disparity against the Golden State Warriors. 
+`pm` (plus/minus) is not the greatest stat to use to determine a player's impact because it does not consider the impact of other players on the court, but it is still useful in gaining a rudimentary understanding of a player's value. At a glance, this graphic shows that the spread for the distribution of Jokic's `pm` is greatest when he plays against the Atlanta Hawks, the Cleveland Cavaliers, and Golden State Warriors. In other words, he plays the most inconsistently against these teams compared to other teams. Jokic has his highest median plus/minus when he plays against the Orlando Magic and has his lowest median `pm` when he plays against the Golden State Warriors. In other words, his team's typical lead when he is playing is greatest against the Orlando Magic but lowest against the Golden State Warriors. 
 
 ## Average True Shooting Percentage Over Time
+The data set without missing values was used for this section. Again, this may have a slight negative impact on the accuracy of this analysis.
+
 ```{r}
 eda_stats %>% 
   group_by(year) %>% 
@@ -282,17 +287,17 @@ eda_stats %>%
   ggtitle('Average True Shooting Percentage Over Time') + xlab('Year') + ylab('Average True Shooting Percentage')
 ```
 
-This graphic shows that Jokic's average scoring efficiency (considering 2-pointers, 3-pointers, and free throws) improved until 2018, after which his efficiency has fluctuated. In particular, we can see that Jokic's average true shooting percentage was around a ridiculously elite percentage of 65% in 2021, which is when he won his first MVP award. 
+This graphic shows that Jokic's average scoring efficiency (considering 2-pointers, 3-pointers, and free throws) has generally been improving. Even when there was a decline from 2017 to 2019, his average `ts_percent` was still above 0.5875. This means that he was successful in over half of all of his scoring attempts! In particular, we can see that Jokic's average true shooting percentage was over a ridiculously elite percentage of 65% in 2021 and 2022, which is when he won his two MVP awards. Therefore, there has generally been an upward trend during his career so far regarding his performance. 
 
 ## Scatterplot of Plus/Minus vs. Usage Percentage
 ```{r, message=FALSE}
-stats %>% 
+stats_with_diff %>% 
   ggplot(aes(x=usg_percent, y=pm, color=result)) + geom_point() + geom_smooth(method='lm') + 
   ggtitle('Plus/Minus vs. Usage Percentage') + xlab('Usage Percentage') + ylab('Plus/Minus') + 
   guides(color=guide_legend(title='Result'))
 ```
 
-This graphic reveals that as Jokic's usage percentage increases, his plus/minus tends to drop slightly. That is, as Jokic becomes more involved his team's plays, the lead that his team has while he is in the game slightly decreases. Therefore, there seems to be a point of diminishing returns on scoring as his team relies on him more. 
+This graphic reveals that as Jokic's `usg_percent` increases, his `pm` tends to drop slightly regardless of the game's result. That is, as Jokic becomes more involved his team's plays, the lead that his team has while he is in the game slightly decreases. Therefore, there seems to be a point of diminishing returns on scoring as his team relies on him more. 
 
 
 # Data Splitting and Cross Validation
@@ -320,7 +325,7 @@ Before fitting models, a problem with the data had to be addressed: missing valu
 
 I decided to impute missing values using the medians of the respective predictors. Therefore, readers should understand that any conclusions made in this project involve the following caveat: missing values for any predictor were replaced with the median for that particular predictor. This may either inflate or deflate Jokic's overall performance in each game with missing values.
 
-The recipe used to fit the models was created with the following code after identifying which predictors had missing values.
+I created the recipe used to fit the models after identifying which predictors had missing values.
 
 ```{r class.source = 'fold-show'}
 # Predictors with missing values
@@ -335,53 +340,222 @@ recipe = recipe(result ~., data = stats_train) %>%
 ```
 
 ## Logistic Regression Model
-I first fit a logistic regression model with the following code.
+I first fit a logistic regression model to the training data. As an aside, I got a warning message describing that some predicted probabilities were extremely close to 0 or 1.
 
-```{r class.source = 'fold-show', warning=FALSE}
+```{r class.source = 'fold-show', message=FALSE}
 log_reg = logistic_reg() %>% 
   set_engine('glm') %>% 
   set_mode('classification')
 
-log_workflow = workflow() %>% 
+log_wf = workflow() %>% 
   add_model(log_reg) %>% 
   add_recipe(recipe)
 
-log_fit = fit(log_workflow, stats_train)
+control = control_resamples(save_pred = TRUE)
+
+log_fit = fit_resamples(log_wf, stats_folds, control=control)
 ```
 
-## Random Forest Model 
+## Support Vector Machines
+I then fit a linear support vector machines (SVM) model.
+
+```{r}
+svm_spec = svm_poly(degree = 1) %>%
+  set_mode('classification') %>%
+  set_engine('kernlab', scaled = FALSE)
+```
+
+I then set up a tuning grid. 
+
+```{r}
+svm_grid = grid_regular(cost(), levels=10)
+```
+
+Next, I created a workflow while tuning `cost` and then tuned the model. 
+
+```{r}
+svm_wf <- workflow() %>%
+  add_model(svm_spec %>% set_args(cost = tune())) %>%
+  add_recipe(recipe)
+
+# svm_tune_res <- tune_grid(svm_wf, resamples = stats_folds, grid = svm_grid, metrics=metric_set(accuracy))
+load('svm.rda')
+```
+
+I also printed an autoplot() of the results. It appears that accuracy is highest when `cost` is 10.07936840.
+
+```{r}
+autoplot(svm_tune_res)
+```
+
+```{r}
+show_best(svm_tune_res)
+```
+
+
+Finally, I fit the model and selected the best performing SVM model.  
+
+```{r}
+best_svm = select_best(svm_tune_res, metric='accuracy')
+
+svm_final = finalize_workflow(svm_wf, best_svm)
+
+svm_final_fit = fit(svm_final, data = stats_train)
+```
+
+
+## Random Forest Model
+I then fit a random forest model. I set the model while tuning `mtry`, `trees`, and `min_n`. 
+
 ```{r class.source = 'fold-show'}
 rf_spec = rand_forest(mtry=tune(), trees=tune(), min_n=tune()) %>% 
   set_engine('ranger', importance='impurity') %>% 
   set_mode('classification')
 ```
 
+I then set up a tuning grid. 
+
 ```{r class.source = 'fold-show'}
-rf_grid = grid_regular(mtry(range=c(1, 6)), trees(range=c(1, 4)), min_n(range=c(1, 10)), levels=41)
+rf_grid = grid_regular(mtry(range=c(1, 6)), trees(range=c(100, 500)), min_n(range=c(1, 20)), levels=10)
 ```
+
+I then created a workflow for the random forest model and tuned the model.
 
 ```{r class.source = 'fold-show'}
 rf_wf = workflow() %>% 
   add_model(rf_spec) %>% 
   add_recipe(recipe)
 
-# rf_tune_res = tune_grid(rf_wf, resamples=stats_folds, grid=rf_grid, metrics=metric_set(roc_auc))
+# rf_tune_res = tune_grid(rf_wf, resamples=stats_folds, grid=rf_grid, metrics=metric_set(accuracy))
 load('rf.rda')
 ```
+
+I also printed an autoplot() of the results. It appears that accuracy is highest when `mtry` is 6, `trees` is 455, and `min_n` is 9. 
 
 ```{r}
 autoplot(rf_tune_res)
 ```
 
+```{r}
+show_best(rf_tune_res)
+```
+
+Finally, I fit the model and selected the best performing random forest model.  
+
 ```{r class.source = 'fold-show'}
-best_rf = select_best(rf_tune_res)
+best_rf = select_best(rf_tune_res, metric='accuracy')
 
 rf_final = finalize_workflow(rf_wf, best_rf)
 
 rf_final_fit = fit(rf_final, data = stats_train)
 ```
 
-```{r}
+## Boosted Trees Model
+I also fit a boosted trees model. I set the model while tuning `trees` and `learn_rate`. 
 
+```{r class.source = 'fold-show'}
+boost_spec <- boost_tree(trees=tune(), learn_rate=tune()) %>%
+  set_engine('xgboost') %>%
+  set_mode('classification')
 ```
+
+I then set up a tuning grid. 
+
+```{r class.source = 'fold-show'}
+boost_grid = grid_regular(trees(range = c(10, 2000)), learn_rate(range = c(-5, 5)), levels = 10)
+```
+
+I then created a workflow for the boosted trees model and tuned the model.
+
+```{r class.source = 'fold-show'}
+boost_wf = workflow() %>%
+  add_model(boost_spec) %>%
+  add_recipe(recipe)
+
+# boost_tune_res = tune_grid(boost_wf, resamples=stats_folds, grid=boost_grid, metrics=metric_set(accuracy))
+load('boost.rda')
+```
+
+I also printed an autoplot() of the results. It appears that accuracy is highest when `trees` is 452 and `learn_rate` is 0.27825594.
+
+```{r}
+autoplot(boost_tune_res)
+```
+
+```{r}
+show_best(boost_tune_res)
+```
+
+Finally, I fit the model and selected the best performing boosted trees model.
+
+```{r}
+best_boost = select_best(boost_tune_res, metric='accuracy')
+
+boost_final = finalize_workflow(boost_wf, best_boost)
+
+boost_final_fit = fit(boost_final, data = stats_train)
+```
+
+
+# Model Performance
+
+## Selecting the Best Type of Model
+To compare model performances, I created a table that displays the accuracy rates for all four models using the training set and then using the testing set. 
+
+```{r}
+log_train_acc = augment(log_fit) %>%
+  accuracy(truth = result, estimate = .pred_class)
+
+svm_train_acc = augment(svm_final_fit, new_data = stats_train) %>%
+  accuracy(truth = result, estimate = .pred_class)
+
+rf_train_acc = augment(rf_final_fit, new_data = stats_train) %>%
+  accuracy(truth = result, estimate = .pred_class)
+
+boost_train_acc = augment(boost_final_fit, new_data = stats_train) %>%
+  accuracy(truth = result, estimate = .pred_class)
+
+accuracies <- c(log_train_acc$.estimate, svm_train_acc$.estimate, 
+                rf_train_acc$.estimate, boost_train_acc$.estimate)
+models <- c("Logistic Regression", "SVM", "Random Forest", "Boosted Trees")
+results <- tibble(training_accuracy = accuracies, models = models)
+results %>% 
+  arrange(-accuracies)
+```
+
+```{r, message=FALSE}
+log_test_recipe = recipe(result ~., data = stats_test) %>% 
+  step_impute_median(fg_percent, three_pts_percent, ft_percent, ts_percent, efg_percent, tov_percent) %>% 
+  step_dummy(all_nominal_predictors()) %>% 
+  step_normalize(all_predictors())
+
+log_test_wf = workflow() %>% 
+  add_model(log_reg) %>% 
+  add_recipe(log_test_recipe)
+
+control = control_resamples(save_pred = TRUE)
+
+log_test_fit = fit_resamples(log_test_wf, stats_folds, control=control)
+
+log_test_acc = augment(log_test_fit) %>%
+  accuracy(truth = result, estimate = .pred_class)
+
+svm_test_acc = augment(svm_final_fit, new_data = stats_test) %>%
+  accuracy(truth = result, estimate = .pred_class)
+
+rf_test_acc = augment(rf_final_fit, new_data = stats_test) %>%
+  accuracy(truth = result, estimate = .pred_class)
+
+boost_test_acc = augment(boost_final_fit, new_data = stats_test) %>%
+  accuracy(truth = result, estimate = .pred_class)
+
+accuracies <- c(log_test_acc$.estimate, svm_test_acc$.estimate, 
+                rf_test_acc$.estimate, boost_test_acc$.estimate)
+models <- c("Logistic Regression", "SVM", "Random Forest", "Boosted Trees")
+results <- tibble(testing_accuracy = accuracies, models = models)
+results %>% 
+  arrange(-accuracies)
+```
+
+
 
